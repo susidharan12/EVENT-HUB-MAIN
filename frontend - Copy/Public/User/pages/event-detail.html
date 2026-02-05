@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Event Details - EventHub</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+    
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background-color: #f8fafc;
+    }
+
+    .glass-nav {
+      background: rgba(255, 255, 255, 0.8);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+    }
+
+    .event-image-container {
+      height: 500px;
+      border-radius: 32px;
+      overflow: hidden;
+      position: relative;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15);
+    }
+
+    .event-image-container img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .image-overlay {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(to bottom, transparent 40%, rgba(15, 23, 42, 0.8));
+    }
+
+    .floating-card {
+      background: white;
+      border-radius: 24px;
+      border: 1px solid #f1f5f9;
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);
+    }
+
+    .modal-overlay {
+      background: rgba(15, 23, 42, 0.6);
+      backdrop-filter: blur(4px);
+    }
+  </style>
+</head>
+<body class="min-h-screen">
+
+  <!-- Header / Logo Corner -->
+  <header class="fixed top-0 left-0 right-0 z-50 glass-nav px-6 py-4">
+    <div class="container mx-auto flex justify-between items-center">
+      <div class="flex items-center gap-2 group cursor-pointer">
+        <div class="bg-indigo-600 p-2 rounded-xl">
+          <i data-lucide="calendar" class="text-white w-6 h-6"></i>
+        </div>
+        <span class="text-2xl font-extrabold tracking-tight text-slate-900">Event<span class="text-indigo-600">Hub</span></span>
+      </div>
+      <nav id="navbar" class="hidden md:flex items-center gap-8 text-sm font-bold text-slate-600">
+        <!-- Navbar content will be injected here -->
+      </nav>
+    </div>
+    <nav class="hidden md:flex items-center gap-8 text-sm font-bold text-slate-600">
+      <a href="dashboard.html" class="hover:text-indigo-600 transition-colors">Home</a>
+      <a href="#" class="text-indigo-600">About</a>
+     
+      <a href="event-detail.html" class="bg-slate-900 text-white px-5 py-2.5 rounded-xl hover:bg-slate-800 transition-all">Get Started</a>
+    </nav>
+  </header>
+
+  <main class="pt-28 pb-20 container mx-auto px-4 max-w-6xl">
+    <!-- Hero Section -->
+    <div class="event-image-container mb-12">
+      <img id="event-cover-image" src="https://images.unsplash.com/photo-1540575861501-7cf05a4b125a?auto=format&fit=crop&q=80&w=1200" alt="Event Cover">
+      <div class="image-overlay"></div>
+      <div class="absolute bottom-10 left-10 right-10">
+        <div class="flex flex-wrap gap-3 mb-4">
+          <span id="event-category" class="px-4 py-1.5 bg-indigo-600 text-white text-xs font-bold rounded-full uppercase tracking-widest">Category</span>
+          <span class="px-4 py-1.5 bg-white/20 backdrop-blur-md text-white text-xs font-bold rounded-full uppercase tracking-widest flex items-center gap-2">
+            <i data-lucide="users" class="w-3 h-3"></i>
+            <span id="event-seating-capacity">0</span> Seats
+          </span>
+        </div>
+        <h1 id="event-name" class="text-4xl md:text-6xl font-black text-white leading-tight">Event Title Loading...</h1>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-12">
+      <!-- Left: Description -->
+      <div class="lg:col-span-2 space-y-8">
+        <section>
+          <h3 class="text-2xl font-bold text-slate-900 mb-4">About this event</h3>
+          <p id="event-description" class="text-slate-600 leading-relaxed text-lg">
+            Loading event description...
+          </p>
+        </section>
+
+        <!-- Seat Map Placeholder (if used) -->
+        <div id="seat-map-container"></div>
+      </div>
+
+      <!-- Right: Sidebar Info -->
+      <div class="space-y-6">
+        <div class="floating-card p-8 sticky top-32">
+          <h4 class="text-slate-900 font-bold mb-6 text-lg">Event Details</h4>
+          
+          <div class="space-y-6 mb-8">
+            <div class="flex items-start gap-4">
+              <div class="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center shrink-0">
+                <i data-lucide="calendar-days" class="w-5 h-5 text-indigo-600"></i>
+              </div>
+              <div>
+                <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">Date & Time</p>
+                <p id="event-date-time" class="text-slate-800 font-semibold">Loading...</p>
+              </div>
+            </div>
+
+            <div class="flex items-start gap-4">
+              <div class="w-10 h-10 rounded-xl bg-rose-50 flex items-center justify-center shrink-0">
+                <i data-lucide="map-pin" class="w-5 h-5 text-rose-600"></i>
+              </div>
+              <div>
+                <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">Location</p>
+                <p id="event-location" class="text-slate-800 font-semibold">Loading...</p>
+              </div>
+            </div>
+          </div>
+
+          <button id="book-tickets-btn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 px-6 rounded-2xl transition-all shadow-xl shadow-indigo-200 flex items-center justify-center gap-3 text-lg">
+            <i data-lucide="ticket" class="w-5 h-5"></i>
+            Book Tickets Now
+          </button>
+          
+          <p class="text-center text-slate-400 text-xs mt-4 font-medium">
+            * Secure checkout powered by EventHub
+          </p>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Modal Structure -->
+  <div id="modal" class="fixed inset-0 z-[100] flex items-center justify-center p-4 modal-overlay" style="display: none;">
+    <div class="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl transform transition-all animate-in zoom-in-95 duration-200">
+      <div class="w-16 h-16 bg-indigo-100 rounded-full flex items-center justify-center mb-6 mx-auto">
+        <i data-lucide="info" class="w-8 h-8 text-indigo-600"></i>
+      </div>
+      <h2 id="modal-title" class="text-2xl font-bold text-slate-900 text-center mb-2">Notice</h2>
+      <p id="modal-message" class="text-slate-500 text-center mb-8 leading-relaxed">
+        Message content goes here.
+      </p>
+      <button id="modal-confirm" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-4 rounded-2xl transition-all">
+        Got it
+      </button>
+    </div>
+  </div>
+
+  <script>
+    lucide.createIcons();
+    
+    // The EventDetail.js script will handle:
+    // 1. Fetching data from API
+    // 2. Updating event-name, event-cover-image, etc.
+    // 3. Handling the Book Tickets button click
+  </script>
+</body>
+</html>

@@ -1,0 +1,161 @@
+const API_BASE = 'http://localhost:3000/api/events';
+let isEditMode = false;
+
+document.addEventListener('DOMContentLoaded', () => {
+  lucide.createIcons();
+  loadUser();
+  showSection('dashboard');
+});
+
+// 1. Load User from LocalStorage
+function loadUser() {
+  const name = localStorage.getItem('username') || "Organizer";
+  const email = localStorage.getItem('userEmail') || "org@eventhub.com";
+  
+  document.getElementById('top-username').textContent = name;
+  document.getElementById('top-email').textContent = email;
+  document.getElementById('drop-username').textContent = name;
+  document.getElementById('drop-email').textContent = email;
+  document.getElementById('user-initials').textContent = name.charAt(0).toUpperCase();
+}
+
+// 2. Navigation
+function showSection(id) {
+  // Hide all
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.sidebar-menu a').forEach(a => a.classList.remove('active'));
+
+  // Show target
+  document.getElementById(id + '-section').classList.add('active');
+  const nav = document.getElementById('nav-' + id);
+  if(nav) nav.classList.add('active');
+
+  if(id === 'events') fetchMyEvents();
+  if(id === 'dashboard') updateStats();
+  
+  // Reset form if navigating to create
+  if(id === 'create' && !isEditMode) {
+      document.getElementById('event-form').reset();
+      document.getElementById('form-title').textContent = "Create New Event";
+  }
+  isEditMode = false;
+}
+
+function toggleDropdown() {
+  document.getElementById('profile-dropdown').classList.toggle('active');
+}
+
+// 3. Create / Update Event
+document.getElementById('event-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const btn = document.getElementById('save-btn');
+  btn.disabled = true;
+
+  const formData = new FormData();
+  formData.append('userId', localStorage.getItem('userId')); // Store with User ID
+  formData.append('title', document.getElementById('ev-title').value);
+  formData.append('category', document.getElementById('ev-cat').value);
+  formData.append('event_date', document.getElementById('ev-date').value);
+  formData.append('location', document.getElementById('ev-loc').value);
+  formData.append('ticket_price', document.getElementById('ev-price').value);
+  formData.append('total_seats', document.getElementById('ev-seats').value);
+  formData.append('description', document.getElementById('ev-desc').value);
+
+  const files = document.getElementById('ev-files').files;
+  for(let i=0; i<files.length; i++) {
+      formData.append('event-images', files[i]);
+  }
+
+  const eventId = document.getElementById('edit-event-id').value;
+  const url = eventId ? `${API_BASE}/${eventId}` : API_BASE;
+  const method = eventId ? 'PUT' : 'POST';
+
+  try {
+      const res = await fetch(url, {
+          method: method,
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+          body: formData
+      });
+
+      if(res.ok) {
+          alert('Event Saved Successfully!');
+          showSection('events');
+      }
+  } catch (err) {
+      alert('Error connecting to server');
+  } finally {
+      btn.disabled = false;
+  }
+});
+
+// 4. Fetch and Render My Events (Edit Format)
+async function fetchMyEvents() {
+  const container = document.getElementById('events-list-container');
+  container.innerHTML = "<p>Loading...</p>";
+
+  try {
+      const res = await fetch(API_BASE, {
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      });
+      const events = await res.json();
+
+      if(events.length === 0) {
+          container.innerHTML = "<p>No events found.</p>";
+          return;
+      }
+
+      container.innerHTML = events.map(ev => `
+          <div class="event-card">
+              <img src="${ev.image_url || 'https://via.placeholder.com/150x100'}" alt="event">
+              <div class="event-details">
+                  <h4>${ev.title}</h4>
+                  <p style="font-size:0.85rem; color:#6b7280">${ev.location} | ${new Date(ev.event_date).toLocaleDateString()}</p>
+                  <p><strong>₹${ev.ticket_price}</strong></p>
+              </div>
+              <div class="event-actions">
+                  <button class="btn btn-edit btn-sm" onclick="prepareEdit('${ev.id}')"><i data-lucide="edit-2"></i> Edit</button>
+                  <button class="btn btn-delete btn-sm" onclick="deleteEvent('${ev.id}')"><i data-lucide="trash"></i></button>
+              </div>
+          </div>
+      `).join('');
+      lucide.createIcons();
+  } catch (e) {
+      container.innerHTML = "<p>Error loading data.</p>";
+  }
+}
+
+// 5. Edit Logic
+async function prepareEdit(id) {
+  isEditMode = true;
+  const res = await fetch(`${API_BASE}/${id}`);
+  const ev = await res.json();
+
+  document.getElementById('edit-event-id').value = ev.id;
+  document.getElementById('ev-title').value = ev.title;
+  document.getElementById('ev-cat').value = ev.category;
+  document.getElementById('ev-date').value = ev.event_date.substring(0, 16);
+  document.getElementById('ev-loc').value = ev.location;
+  document.getElementById('ev-price').value = ev.ticket_price;
+  document.getElementById('ev-seats').value = ev.total_seats;
+  document.getElementById('ev-desc').value = ev.description;
+
+  document.getElementById('form-title').textContent = "Edit Event";
+  showSection('create');
+}
+
+async function deleteEvent(id) {
+  if(!confirm('Delete this event?')) return;
+  await fetch(`${API_BASE}/${id}`, { method: 'DELETE' });
+  fetchMyEvents();
+}
+
+async function updateStats() {
+  const res = await fetch(`${API_BASE}/count`);
+  const data = await res.json();
+  document.getElementById('stat-events').textContent = data.count || 0;
+}
+
+function logout() {
+  localStorage.clear();
+  window.location.href = '/login.html';
+}
