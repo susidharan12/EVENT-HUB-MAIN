@@ -1,4 +1,4 @@
-const API_BASE = 'http://localhost:3000/api/events';
+const API_BASE = 'http://localhost:3000/api';
 let isEditMode = false;
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -46,47 +46,81 @@ function toggleDropdown() {
 }
 
 // 3. Create / Update Event
-document.getElementById('event-form').addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const btn = document.getElementById('save-btn');
-  btn.disabled = true;
+const btn = document.getElementById('save-btn');
 
-  const formData = new FormData();
-  formData.append('userId', localStorage.getItem('userId')); // Store with User ID
-  formData.append('title', document.getElementById('ev-title').value);
-  formData.append('category', document.getElementById('ev-cat').value);
-  formData.append('event_date', document.getElementById('ev-date').value);
-  formData.append('location', document.getElementById('ev-loc').value);
-  formData.append('ticket_price', document.getElementById('ev-price').value);
-  formData.append('total_seats', document.getElementById('ev-seats').value);
-  formData.append('description', document.getElementById('ev-desc').value);
+btn.addEventListener('click', async (e) => {
+    e.preventDefault();
+    btn.disabled = true;
 
-  const files = document.getElementById('ev-files').files;
-  for(let i=0; i<files.length; i++) {
-      formData.append('event-images', files[i]);
-  }
+    const eventId = document.getElementById('edit-event-id').value;
+    const titleInput = document.getElementById('ev-title');
+    const descInput = document.getElementById('ev-desc');
+    const locationInput = document.getElementById('ev-loc');
+    const dateInput = document.getElementById('ev-date');
+    const priceInput = document.getElementById('ev-price');
+    const seatsInput = document.getElementById('ev-seats');
+    const categoryInput = document.getElementById('ev-cat');
+    const fileInput = document.getElementById('ev-files');
 
-  const eventId = document.getElementById('edit-event-id').value;
-  const url = eventId ? `${API_BASE}/${eventId}` : API_BASE;
-  const method = eventId ? 'PUT' : 'POST';
+    // Build FormData using keys backend expects
+    const formData = new FormData();
+    formData.append('title', titleInput.value);
+    formData.append('description', descInput.value);
+    formData.append('location', locationInput.value);
+    formData.append('event_date', dateInput.value);
+    formData.append('price', priceInput.value);
+    formData.append('total_seats', seatsInput.value);
+    formData.append('category', categoryInput.value);
+    if (fileInput.files[0]) formData.append('event-cover', fileInput.files[0]); // backend expects 'event-cover'
 
-  try {
-      const res = await fetch(url, {
-          method: method,
-          headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` },
-          body: formData
-      });
+    // Determine URL and method
+    let url = '';
+    let method = '';
+    if (eventId) {
+        // Update existing event
+        url = `${API_BASE}/events/${eventId}`;
+        method = 'PUT';
+    } else {
+        // Create new event
+        url = `${API_BASE}/events`;
+        method = 'POST';
+    }
 
-      if(res.ok) {
-          alert('Event Saved Successfully!');
-          showSection('events');
-      }
-  } catch (err) {
-      alert('Error connecting to server');
-  } finally {
-      btn.disabled = false;
-  }
+    try {
+        const res = await fetch(url, {
+            method: method,
+            headers: {
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+            },
+            body: formData
+        });
+
+        const data = await res.json();
+
+        if (res.ok) {
+            alert(eventId ? 'Event Updated Successfully!' : 'Event Created Successfully!');
+            if (typeof showSection === 'function') showSection('events');
+        } else {
+            alert('Error: ' + (data.error || JSON.stringify(data)));
+        }
+    } catch (err) {
+        console.error(err);
+        alert('Error connecting to server');
+    } finally {
+        btn.disabled = false;
+    }
+    console.log('Form submitted with data:', {
+        title: titleInput.value,
+        description: descInput.value, 
+        location: locationInput.value,
+        event_date: dateInput.value,
+        price: priceInput.value,
+        total_seats: seatsInput.value,
+        category: categoryInput.value,
+        hasFile: fileInput.files[0] ? true : false
+    });
 });
+
 
 // 4. Fetch and Render My Events (Edit Format)
 async function fetchMyEvents() {
@@ -97,20 +131,22 @@ async function fetchMyEvents() {
       const res = await fetch(API_BASE, {
           headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
       });
-      const events = await res.json();
+      let payload = await res.json();
+      // Support both { events: [...] } and direct array responses
+      const events = Array.isArray(payload) ? payload : (payload.events || payload);
 
-      if(events.length === 0) {
+      if(!events || events.length === 0) {
           container.innerHTML = "<p>No events found.</p>";
           return;
       }
 
       container.innerHTML = events.map(ev => `
           <div class="event-card">
-              <img src="${ev.image_url || 'https://via.placeholder.com/150x100'}" alt="event">
+              <img src="${(ev.images && ev.images[0]) || 'https://via.placeholder.com/150x100'}" alt="event">
               <div class="event-details">
                   <h4>${ev.title}</h4>
                   <p style="font-size:0.85rem; color:#6b7280">${ev.location} | ${new Date(ev.event_date).toLocaleDateString()}</p>
-                  <p><strong>₹${ev.ticket_price}</strong></p>
+                  <p><strong>₹${ev.price || ev.ticket_price || 0}</strong></p>
               </div>
               <div class="event-actions">
                   <button class="btn btn-edit btn-sm" onclick="prepareEdit('${ev.id}')"><i data-lucide="edit-2"></i> Edit</button>
@@ -127,17 +163,18 @@ async function fetchMyEvents() {
 // 5. Edit Logic
 async function prepareEdit(id) {
   isEditMode = true;
-  const res = await fetch(`${API_BASE}/${id}`);
-  const ev = await res.json();
+    const res = await fetch(`${API_BASE}/${id}`);
+    let payload = await res.json();
+    const ev = payload.event || payload;
 
-  document.getElementById('edit-event-id').value = ev.id;
-  document.getElementById('ev-title').value = ev.title;
-  document.getElementById('ev-cat').value = ev.category;
-  document.getElementById('ev-date').value = ev.event_date.substring(0, 16);
-  document.getElementById('ev-loc').value = ev.location;
-  document.getElementById('ev-price').value = ev.ticket_price;
-  document.getElementById('ev-seats').value = ev.total_seats;
-  document.getElementById('ev-desc').value = ev.description;
+    document.getElementById('edit-event-id').value = ev.id;
+    document.getElementById('ev-title').value = ev.title || '';
+    document.getElementById('ev-cat').value = ev.category || '';
+    document.getElementById('ev-date').value = ev.event_date ? ev.event_date.substring(0, 16) : '';
+    document.getElementById('ev-loc').value = ev.location || '';
+    document.getElementById('ev-price').value = ev.price || ev.ticket_price || '';
+    document.getElementById('ev-seats').value = ev.total_seats || '';
+    document.getElementById('ev-desc').value = ev.description || '';
 
   document.getElementById('form-title').textContent = "Edit Event";
   showSection('create');

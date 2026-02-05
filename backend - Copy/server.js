@@ -7,6 +7,7 @@ const swaggerUi = require("swagger-ui-express");
 const swaggerSpec = require("./Swagger");
 const pool = require('./db');
 
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -115,6 +116,7 @@ async function initializeDatabase() {
   }
 }
 
+
 // 4. SERVER STARTUP & ROUTE MOUNTING
 const startServer = async () => {
   const dbReady = await initializeDatabase();
@@ -124,14 +126,16 @@ const startServer = async () => {
     try {
       // Import routers
       const authRouter = require('./routes/auth');
-      const eventsRouter = require('./routes/events');
+      const eventRouter = require('./routes/events');
       const bookingsRouter = require('./routes/bookings');
       const paymentsRouter = require('./routes/payments');
+      const eventRoutes = require('./routes/events');
 
       // Mount routers to specific paths
       // This enables /api/auth/signup, /api/auth/profile, /api/auth/update-profile etc.
+      app.use('/api', eventRoutes);
       app.use('/api/auth', authRouter);
-      app.use('/api/events', eventsRouter);
+      app.use('/api/events', eventRouter);
       app.use('/api/bookings', bookingsRouter);
       app.use('/api/payments', paymentsRouter);
       
@@ -165,6 +169,9 @@ const startServer = async () => {
   const server = app.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 Server running at http://localhost:${PORT}`);
     console.log(`📚 API Documentation: http://localhost:${PORT}/api-docs`);
+    console.log(`🔐 Auth Endpoints: http://localhost:${PORT}/api/auth/signup`)
+    console.log(`🔐 Auth Endpoints: http://localhost:${PORT}/api/auth/login`);
+    console.log(`🔐 Auth Endpoints: http://localhost:${PORT}/api/events`);
     console.log(`👤 Profile Endpoint: http://localhost:${PORT}/api/auth/profile`);
     console.log(`pencil Update Endpoint: http://localhost:${PORT}/api/auth/update-profile`);
   });
